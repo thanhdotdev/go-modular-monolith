@@ -22,6 +22,7 @@ Endpoints mẫu:
 - `GET /healthz`
 - `GET /api/v1/orders/ord-001`
 - `GET /api/v1/customers/cus-001`
+- `GET /api/v1/discounts/WELCOME10`
 
 Response thành công hiện theo envelope:
 
@@ -29,9 +30,16 @@ Response thành công hiện theo envelope:
 {
   "data": {
     "id": "ord-001",
+    "discountCode": "WELCOME10",
     "customerName": "Alice",
     "status": "pending",
-    "totalAmount": 125000
+    "totalAmount": 125000,
+    "discount": {
+      "code": "WELCOME10",
+      "type": "fixed",
+      "value": 10000,
+      "active": true
+    }
   },
   "meta": {
     "requestId": "..."
@@ -68,6 +76,7 @@ internal/app
 internal/platform
 internal/modules/order
 internal/modules/customer
+internal/modules/discount
 docs/architecture.md
 docs/module-guide.md
 ```
@@ -79,6 +88,7 @@ Giải thích nhanh:
 - `internal/shared`: phần dùng chung ở mức HTTP như middleware và response helper
 - `internal/modules/order`: module business mẫu cho order
 - `internal/modules/customer`: module business mẫu thứ hai để thấy boundary giữa các module
+- `internal/modules/discount`: module business mẫu cho discount và ví dụ module-to-module call một chiều
 
 Chi tiết hơn xem ở [docs/architecture.md](/Users/vothanh/Documents/Playground/project-example/docs/architecture.md).
 Hướng dẫn thêm module mới xem ở [docs/module-guide.md](/Users/vothanh/Documents/Playground/project-example/docs/module-guide.md).
@@ -176,11 +186,23 @@ Khi xong:
 make down
 ```
 
+## Module gọi module khác theo cách nào?
+
+Template này mặc định ưu tiên cách đơn giản:
+- module A không gọi repo của module B
+- module A có thể nhận thẳng `application.UseCase` của module B từ `internal/app`
+- chỉ tách thêm outbound contract hoặc adapter khi pain point thật sự xuất hiện
+
+Ví dụ đang có trong repo:
+- `order` gọi `discountapplication.UseCase`
+- việc wiring nằm ở [app.go](/Users/vothanh/Documents/Playground/project-example/internal/app/app.go)
+- `order` chỉ dùng `discount` ở `application/service.go`, không chạm vào repo hay hạ tầng của `discount`
+
 ## Vì sao chưa có Postgres/Redis thật?
 
 Để tránh over-engineering ở giai đoạn học khung:
 - module `order` có thể chạy bằng memory hoặc Postgres
-- module `customer` cũng dùng memory repository
+- module `customer` và `discount` hiện dùng memory repository
 - `order` là ví dụ đầu tiên cho việc thay memory bằng persistence thật
 - lúc đó `application` và `domain` gần như không phải đổi
 

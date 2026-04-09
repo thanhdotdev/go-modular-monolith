@@ -89,6 +89,7 @@ internal/shared/
 internal/modules/
   order/
   customer/
+  discount/
 ```
 
 ### `cmd/server`
@@ -200,6 +201,17 @@ Chứa:
 `usecase.go` ở đây là inbound contract:
 - `delivery/http` gọi vào `application` qua contract này
 - implementation thật là `Service`
+
+Với template hiện tại, nếu module A cần dùng một use case của module B thì ưu tiên cách đơn giản trước:
+- inject thẳng `moduleB/application.UseCase` từ `internal/app`
+- không gọi repo của module B
+- không tạo thêm adapter hoặc outbound contract nếu chưa có pain point thật
+
+Ví dụ hiện có trong repo:
+- `order/application/service.go` dùng `discountapplication.UseCase`
+- phần wiring nằm ở `internal/app/app.go`
+- đây là dependency một chiều `order -> discount`
+- nếu sau này xuất hiện gọi chéo hai chiều, khi đó mới nên tách orchestration ra ngoài
 
 ### `delivery/http`
 

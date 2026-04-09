@@ -23,7 +23,7 @@ Mỗi tầng có vai trò riêng:
 Naming đang dùng trong `application`:
 - `usecase.go`: inbound contract mà `delivery` sẽ gọi
 - `service.go`: implementation của use case
-- `dependencies.go`: outbound contracts nếu module cần gọi ra ngoài, ví dụ gọi use case của module khác
+- `dependencies.go`: outbound contracts nếu module bắt đầu cần thu hẹp dependency ra ngoài; không bắt buộc phải tạo từ đầu
 
 ## 2. Sinh module mới
 
@@ -48,6 +48,6 @@ Sau đó bạn cần:
 - Không để `domain` import `gin`, `gorm`, `redis`
 - Không gọi repository của module khác trực tiếp
 - Nếu module A cần logic của module B, bắt đầu đơn giản bằng cách inject `application` contract của B từ `internal/app`
-- Nếu module cần outbound contract mới, đặt ở `application/dependencies.go`
+- Chỉ thêm `application/dependencies.go` khi direct dependency bắt đầu gây khó đọc hoặc cần thu hẹp contract
 - Wiring giữa module A và B nên nằm ở `internal/app`, không nhét vào `domain`
 - Chỉ thêm file mới khi module bắt đầu đủ phức tạp để cần nó

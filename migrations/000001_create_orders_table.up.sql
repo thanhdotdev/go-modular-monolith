@@ -1,12 +1,13 @@
 CREATE TABLE IF NOT EXISTS orders (
     id VARCHAR(64) PRIMARY KEY,
+    discount_code VARCHAR(64) NOT NULL,
     customer_name VARCHAR(255) NOT NULL,
     status VARCHAR(50) NOT NULL,
     total_amount BIGINT NOT NULL
 );
 
-INSERT INTO orders (id, customer_name, status, total_amount)
+INSERT INTO orders (id, discount_code, customer_name, status, total_amount)
 VALUES
-    ('ord-001', 'Alice', 'pending', 125000),
-    ('ord-002', 'Bob', 'paid', 340000)
+    ('ord-001', 'WELCOME10', 'Alice', 'pending', 125000),
+    ('ord-002', '', 'Bob', 'paid', 340000)
 ON CONFLICT (id) DO NOTHING;

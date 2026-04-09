@@ -23,6 +23,7 @@ func SeedOrders() []orderdomain.Order {
 	return []orderdomain.Order{
 		{
 			ID:           "ord-001",
+			DiscountCode: "WELCOME10",
 			CustomerName: "Alice",
 			Status:       "pending",
 			TotalAmount:  125000,

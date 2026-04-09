@@ -36,6 +36,10 @@ func TestRepositoryFindByID(t *testing.T) {
 	if order.ID != "ord-001" {
 		t.Fatalf("expected order id ord-001, got %s", order.ID)
 	}
+
+	if order.DiscountCode != "WELCOME10" {
+		t.Fatalf("expected discount code WELCOME10, got %s", order.DiscountCode)
+	}
 }
 
 func TestRepositoryFindByIDReturnsDomainErrorWhenMissing(t *testing.T) {

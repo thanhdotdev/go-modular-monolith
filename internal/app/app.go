@@ -6,6 +6,9 @@ import (
 	"net/http"
 	"project-example/internal/modules/customer"
 	customermemory "project-example/internal/modules/customer/infrastructure/memory"
+	discount "project-example/internal/modules/discount"
+	discountapplication "project-example/internal/modules/discount/application"
+	discountmemory "project-example/internal/modules/discount/infrastructure/memory"
 	"project-example/internal/modules/order"
 	orderdomain "project-example/internal/modules/order/domain"
 	ordermemory "project-example/internal/modules/order/infrastructure/memory"
@@ -105,8 +108,18 @@ func registerSharedRoutes(router *gin.Engine, cfg config.Config) {
 }
 
 func registerModules(api *gin.RouterGroup, postgresDB *gorm.DB, logger *zap.Logger) {
+	discounts := registerDiscountModule(api)
 	registerCustomerModule(api)
-	registerOrderModule(api, postgresDB, logger)
+	registerOrderModule(api, postgresDB, logger, discounts)
+}
+
+func registerDiscountModule(api *gin.RouterGroup) discountapplication.UseCase {
+	module := discount.NewModule(discount.Dependencies{
+		Repository: discountmemory.NewRepository(discountmemory.SeedDiscounts()),
+	})
+	module.RegisterRoutes(api)
+
+	return module.UseCase()
 }
 
 func registerCustomerModule(api *gin.RouterGroup) {
@@ -116,9 +129,10 @@ func registerCustomerModule(api *gin.RouterGroup) {
 	module.RegisterRoutes(api)
 }
 
-func registerOrderModule(api *gin.RouterGroup, postgresDB *gorm.DB, logger *zap.Logger) {
+func registerOrderModule(api *gin.RouterGroup, postgresDB *gorm.DB, logger *zap.Logger, discounts discountapplication.UseCase) {
 	module := order.NewModule(order.Dependencies{
 		Repository: newOrderRepository(postgresDB, logger),
+		Discounts:  discounts,
 	})
 	module.RegisterRoutes(api)
 }

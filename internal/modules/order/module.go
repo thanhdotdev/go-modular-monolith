@@ -1,6 +1,7 @@
 package order
 
 import (
+	discountapplication "project-example/internal/modules/discount/application"
 	orderapplication "project-example/internal/modules/order/application"
 	orderhttp "project-example/internal/modules/order/delivery/http"
 	orderdomain "project-example/internal/modules/order/domain"
@@ -10,6 +11,7 @@ import (
 
 type Dependencies struct {
 	Repository orderdomain.Repository
+	Discounts  discountapplication.UseCase
 }
 
 type Module struct {
@@ -17,7 +19,7 @@ type Module struct {
 }
 
 func NewModule(deps Dependencies) *Module {
-	usecase := orderapplication.NewService(deps.Repository)
+	usecase := orderapplication.NewService(deps.Repository, deps.Discounts)
 	handler := orderhttp.NewHandler(usecase)
 
 	return &Module{handler: handler}
