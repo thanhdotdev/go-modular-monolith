@@ -1,163 +1,356 @@
 # Architecture Notes
 
-Tài liệu này giải thích mục đích của từng tầng trong template modular monolith hiện tại.
+Tài liệu này mô tả đúng trạng thái hiện tại của template `go-modular-monolith`.
 
-## 1. Luồng phụ thuộc
+## 1. Mục tiêu của repo này
 
-Luồng chuẩn là:
+Repo này là starter template cho:
+- `modular monolith`
+- `clean architecture`
+- `DDD-lite`
+
+Nó không nhắm tới:
+- microservices ngay từ đầu
+- enterprise framework quá nặng
+- quá nhiều abstraction khi chưa có nhu cầu thật
+
+Ý tưởng chính là:
+- một app
+- một process
+- nhiều module business chạy cùng nhau
+- mỗi module có boundary rõ để về sau không rơi vào kiểu `service/` và `repository/` phình to
+
+## 2. Luồng phụ thuộc
+
+Luồng chuẩn trong từng module là:
+
+```text
+delivery/http
+-> application
+-> domain
+<- infrastructure
+```
+
+Giải thích:
+- `delivery/http` nhận request HTTP, gọi use case, trả response
+- `application` chứa use case và orchestration logic
+- `domain` chứa entity, repository contract, domain error
+- `infrastructure` implement các contract mà `application` hoặc `domain` cần
+
+Hướng phụ thuộc phải đi vào trong:
+- `delivery` có thể biết `application`
+- `application` có thể biết `domain`
+- `domain` không biết `gin`, `gorm`, `zap`, HTTP hay DB
+
+## 3. Composition Root
+
+File [app.go](/Users/vothanh/Documents/Playground/project-example/internal/app/app.go) là `composition root`.
+
+Đây là nơi:
+- load shared resources
+- tạo router
+- gắn middleware
+- quyết định module nào dùng `memory` repo, module nào dùng `postgres`
+- đăng ký routes của toàn app
+
+Nguyên tắc đang dùng trong repo:
+- shared resource như Postgres connection được mở ở `app`
+- concrete implementation được chọn ở `app`
+- module chỉ nhận dependency dưới dạng contract phù hợp
+
+Ví dụ với `order`:
+- nếu `DATABASE_DSN` rỗng thì dùng `memory repository`
+- nếu `DATABASE_DSN` có giá trị thì dùng `postgres repository`
+
+Điều này giúp:
+- `application` không cần biết đang chạy bằng memory hay Postgres
+- đổi persistence không làm ảnh hưởng `delivery` và `domain`
+
+## 4. Cấu trúc chính của repo
+
+```text
+cmd/server
+cmd/migrate
+
+internal/app
+
+internal/platform/
+  config/
+  database/
+  httpserver/
+  logger/
+
+internal/shared/
+  collection/
+  httpx/
+  middleware/
+  ptr/
+
+internal/modules/
+  order/
+  customer/
+```
+
+### `cmd/server`
+
+File [main.go](/Users/vothanh/Documents/Playground/project-example/cmd/server/main.go):
+- load config
+- bootstrap logger
+- tạo app
+- xử lý shutdown signal
+
+### `cmd/migrate`
+
+File [main.go](/Users/vothanh/Documents/Playground/project-example/cmd/migrate/main.go):
+- load config
+- bootstrap logger
+- chạy `migrate up` hoặc `migrate down`
+
+### `internal/platform`
+
+Phần hạ tầng dùng chung cho toàn app:
+
+- [config.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/config/config.go)
+  - load env config
+  - có generic helper `getEnv[T]`
+- [postgres.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/database/postgres.go)
+  - mở kết nối Postgres
+- [migrate.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/database/migrate.go)
+  - chạy migration SQL versioned
+- [server.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/httpserver/server.go)
+  - bọc `http.Server`
+- [logger.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/logger/logger.go)
+  - bootstrap `zap`
+  - hỗ trợ `stdout|file|both`
+  - hỗ trợ `json|console`
+  - hỗ trợ log rotation bằng `lumberjack`
+- [context.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/logger/context.go)
+  - gắn request-scoped logger vào `context.Context`
+- [close.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/logger/close.go)
+  - đóng logger output ở entrypoint
+
+### `internal/shared`
+
+Phần dùng chung nhưng không thuộc business domain cụ thể:
+
+- [response.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/httpx/response.go)
+  - success response envelope
+- [errors.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/httpx/errors.go)
+  - error mapping cho HTTP
+- [request_id.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/httpx/request_id.go)
+  - request id cho `gin.Context`
+- [request_id.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/middleware/request_id.go)
+  - tạo hoặc lấy `X-Request-ID`
+  - nhét request-scoped logger vào `context`
+- [access_log.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/middleware/access_log.go)
+  - ghi log `[REQUEST] ...`
+  - ghi log `[RESPONSE] ...`
+  - có thể log request/response payload nếu bật config
+- [index.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/collection/index.go)
+  - helper generic `IndexBy`
+- [ptr.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/ptr/ptr.go)
+  - helper generic `ptr.Of`
+
+## 5. Cấu trúc một module
+
+Ví dụ module `order`:
+
+```text
+internal/modules/order/
+  module.go
+  domain/
+  application/
+  delivery/http/
+  infrastructure/memory/
+  infrastructure/postgres/
+```
+
+Ý nghĩa từng phần:
+
+### `domain`
+
+Các file:
+- [order.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/domain/order.go)
+- [repository.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/domain/repository.go)
+- [errors.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/domain/errors.go)
+
+Chứa:
+- entity
+- repository contract
+- domain error
+
+Không chứa:
+- HTTP
+- GORM
+- logger
+- config
+
+### `application`
+
+Các file:
+- [service.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/service.go)
+- [dto.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/dto.go)
+- [port_in.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/port_in.go)
+
+Chứa:
+- use case
+- input validation ở mức use case
+- map domain entity sang DTO
+
+`port_in.go` ở đây là inbound port:
+- `delivery/http` gọi vào `application` qua contract này
+- implementation thật là `Service`
+
+### `delivery/http`
+
+File [handler.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/delivery/http/handler.go):
+- nhận request từ Gin
+- gọi use case
+- map lỗi sang HTTP response
+- dùng `httpx.OK(...)` và `httpx.WriteError(...)`
+
+### `infrastructure`
+
+`order` hiện có 2 implementation:
+
+- [repository.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/infrastructure/memory/repository.go)
+  - dùng để app chạy ngay khi chưa có DB
+- [repository.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/infrastructure/postgres/repository.go)
+  - dùng Postgres thật
+  - model và mapper tách riêng
+
+### `module.go`
+
+File [module.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/module.go):
+- lắp `repo -> usecase -> handler`
+- expose `RegisterRoutes(...)`
+
+Điểm quan trọng:
+- module không tự mở DB
+- module không tự đọc env
+- module nhận dependency đã được quyết định từ `app`
+
+## 6. Request Flow Hiện Tại
+
+Luồng request hiện tại là:
 
 ```text
 HTTP request
--> delivery
--> application
--> domain
--> infrastructure
+-> RequestID middleware
+-> AccessLog middleware ([REQUEST] ...)
+-> handler
+-> application/service
+-> repository
+-> handler
+-> AccessLog middleware ([RESPONSE] ...)
+-> HTTP response
 ```
 
-Nguyên tắc:
-- `delivery` nhận request và trả response
-- `application` chứa use case
-- `domain` chứa business model và business rule
-- `infrastructure` giao tiếp với thế giới bên ngoài như DB, cache, queue
+Chi tiết:
 
-Monolith ở đây nghĩa là:
-- một app
-- một process
-- nhiều module business cùng chạy bên trong
+1. `RequestID` middleware:
+- lấy `X-Request-ID` từ request nếu có
+- nếu chưa có thì tự sinh
+- set lại vào response header
+- tạo request-scoped logger có field `request_id`
+- nhét logger đó vào `context.Context`
 
-Tức là đây không phải microservices, mà là modular monolith.
+2. `AccessLog` middleware:
+- log một dòng mở đầu `[REQUEST] <path>`
+- sau khi xử lý xong, log một dòng `[RESPONSE] <path>`
+- response log có `status`, `latency_ms`, `response_size_bytes`
+- nếu bật config, request/response payload cũng được log
 
-## 2. Use case nằm ở đâu?
+3. `service` có thể log bằng:
+- `logger.FromContext(ctx).Debug(...)`
 
-Trong template này, `usecase` được đặt ở tầng `application`.
+Nhờ vậy log trong `service` cũng tự có `request_id`.
 
-Ví dụ:
-- [service.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/service.go)
-- [port_in.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/port_in.go)
+## 7. Logging Hiện Tại
 
-Lý do:
-- delivery chỉ nên gọi use case
-- domain không nên biết HTTP hay request/response
-- infrastructure không nên chứa business flow
+Repo hiện dùng `zap`.
 
-## 3. Vai trò từng phần
+Các đặc điểm:
+- structured log
+- JSON line mặc định
+- có thể ghi ra file
+- có thể rotate file
+- có request-scoped logger
 
-### `cmd/server/main.go`
-- Điểm vào của app
-- Load config, tạo logger, chạy app
+Các config hiện có trong [config.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/config/config.go):
+- `LOG_OUTPUT`
+- `LOG_FILE_PATH`
+- `LOG_LEVEL`
+- `LOG_FORMAT`
+- `LOG_INCLUDE_REQUEST_BODY`
+- `LOG_INCLUDE_RESPONSE_BODY`
+- `LOG_BODY_MAX_BYTES`
+- `LOG_MAX_SIZE_MB`
+- `LOG_MAX_BACKUPS`
+- `LOG_MAX_AGE_DAYS`
+- `LOG_COMPRESS`
 
-### `internal/app/app.go`
-- Composition root
-- Nơi lắp các thành phần lại với nhau
-- Đăng ký route, khởi động HTTP server, xử lý shutdown
-- Đây cũng là nơi đăng ký các module của monolith
-- Shared resource như DB connection/pool nên được mở ở đây một lần rồi inject xuống các module cần dùng
+Lưu ý:
+- log body đang là `opt-in`
+- nên chỉ bật khi debug hoặc môi trường kiểm soát tốt
+- không nên bật mặc định ở production nếu request có dữ liệu nhạy cảm
 
-### `internal/platform/config`
-- Đọc cấu hình từ env
-- Không chứa business logic
+## 8. Persistence Hiện Tại
 
-### `internal/platform/logger`
-- Tạo logger dùng chung
+`customer`:
+- đang dùng memory repository
 
-### `internal/platform/httpserver`
-- Gói `http.Server` lại để app dễ quản lý
+`order`:
+- dùng memory repository nếu chưa có `DATABASE_DSN`
+- dùng Postgres repository nếu có `DATABASE_DSN`
 
-### `internal/platform/database`
-- Bootstrap Postgres connection
-- Chạy migrations
-- Không chứa business logic
-- Không nên để từng module tự mở kết nối DB riêng nếu cùng dùng một Postgres
+Schema của Postgres được quản lý bằng migration SQL versioned:
+- [000001_create_orders_table.up.sql](/Users/vothanh/Documents/Playground/project-example/migrations/000001_create_orders_table.up.sql)
+- [000001_create_orders_table.down.sql](/Users/vothanh/Documents/Playground/project-example/migrations/000001_create_orders_table.down.sql)
 
-### `internal/shared/middleware`
-- Chứa middleware dùng chung như request id và access log
-- Đây là technical shared code, không chứa business rule
+Không dùng `AutoMigrate`.
 
-### `internal/shared/httpx`
-- Chứa response envelope và error mapping chung cho HTTP layer
-- Mục tiêu là cắt lặp `c.JSON(...)` và chuẩn hóa response shape
+Điểm này quan trọng vì nó giữ:
+- schema có version rõ ràng
+- app boot không tự âm thầm sửa DB
 
-### `internal/modules/order/domain`
-- Entity `Order`
-- `Repository` là contract mà application cần
-- `ErrOrderNotFound` là business error của module
+## 9. Vì sao repo có thêm vài helper generic nhỏ?
 
-### `internal/modules/order/application`
-- Chứa use case
-- Nhận input, gọi repository, map sang DTO trả về cho delivery
-- Đây là nơi điều phối flow của module
+Repo hiện có một số helper generic nhỏ như:
+- `getEnv[T]`
+- `collection.IndexBy`
+- `ptr.Of`
 
-### `internal/modules/order/delivery/http`
-- Nhận request HTTP
-- Gọi use case
-- Map lỗi sang status code phù hợp
-- Dùng shared response/error helper thay vì tự build JSON mỗi handler
+Mục tiêu không phải là “generic hóa mọi thứ”.
+Mục tiêu là:
+- cắt lặp ở những pattern rất cơ học
+- giữ call site ngắn, rõ, dễ đọc
 
-### `internal/modules/order/infrastructure/memory`
-- Repository implementation cho ví dụ hiện tại
-- Được dùng để app chạy được ngay mà không cần DB thật
+Nếu một helper làm code business khó hiểu hơn, thì không nên thêm.
 
-### `internal/modules/order/infrastructure/postgres`
-- Repository implementation dùng Postgres thật
-- Chứa `model`, `mapper`, `repository`
-- Đây là ví dụ rõ nhất cho việc domain không biết gì về GORM/Postgres
+## 10. Những gì repo chưa cố làm
 
-### `internal/modules/order/module.go`
-- Entry point của module `order`
-- Lắp `repository -> usecase -> handler`
-- Expose `RegisterRoutes` cho app
+Repo này chưa cố thêm:
+- auth framework
+- event bus
+- outbox
+- CQRS tách sâu
+- transaction abstraction lớn
+- distributed tracing stack
 
-### `internal/modules/customer`
-- Module mẫu thứ hai
-- Có cấu trúc giống `order`
-- Dùng để chứng minh module boundary trong cùng một monolith
+Lý do là để tránh over-engineering ở giai đoạn làm starter template.
 
-## 4. Tại sao chưa tách nhiều file hơn?
-
-Để tránh over-engineering.
-
-Hiện tại tôi chỉ tách file khi nó giúp nhìn rõ vai trò:
-- `domain/order.go`: entity
-- `application/service.go`: use case
-- `delivery/http/handler.go`: adapter HTTP
-
-Các phần như `commands.go`, `queries.go`, `mapper.go`, `response.go` có thể thêm sau khi module bắt đầu lớn hơn.
-
-## 5. Khi nào nên thêm abstraction mới?
-
-Chỉ thêm khi có nhu cầu thật:
-- Thêm `postgres` repository khi app cần DB thật
-- Thêm `shared/response` khi có nhiều module cần format response giống nhau
-- Thêm `commands.go` và `queries.go` khi use case bắt đầu nhiều
-- Thêm abstraction cross-module khi bạn thực sự có nhu cầu trao đổi giữa các module
-
-Hiện tại template đã thêm `internal/shared/httpx` vì đã có hơn một module HTTP và response/error bắt đầu lặp lại.
-
-## 6. Thay infrastructure mà không đổi core
-
-Module `order` hiện là ví dụ cho flow này:
-
-```text
-memory repository -> postgres repository
-```
-
-Khi đổi persistence:
-- `domain` không đổi
-- `application` không đổi
-- `delivery/http` không đổi
-- chỉ đổi implementation ở `infrastructure` và cách lắp ở `app`
-
-Schema của Postgres không còn tạo bằng `AutoMigrate`.
-Thay vào đó repo dùng migration SQL versioned trong thư mục `migrations/`.
-
-## 7. Khi nào dùng template này?
+## 11. Khi nào dùng template này?
 
 Template này hợp với:
 - dự án monolith sống lâu
 - có nhiều domain/module business
-- muốn bắt đầu nhanh nhưng vẫn giữ codebase sạch
+- muốn bắt đầu nhanh nhưng vẫn giữ boundary sạch
 
 Template này không tối ưu cho:
-- tool nhỏ một vài CRUD đơn giản
+- tool rất nhỏ
+- CRUD rất đơn giản
 - spike ngắn ngày
-- project chỉ có 1-2 màn hình và không có business rule đáng kể
+
+Nếu project đủ nhỏ, layer architecture đơn giản vẫn có thể hợp lý hơn.
+Nếu project sẽ sống lâu, modular monolith như repo này thường là điểm bắt đầu tốt hơn.
