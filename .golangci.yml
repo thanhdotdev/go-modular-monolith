@@ -1,0 +1,39 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - depguard
+    - errorlint
+    - misspell
+    - nolintlint
+  settings:
+    depguard:
+      rules:
+        domain-clean-boundary:
+          files:
+            - internal/modules/*/domain/*.go
+          deny:
+            - pkg: github.com/gin-gonic/gin
+              desc: domain layer must not depend on the HTTP framework
+            - pkg: gorm.io/gorm
+              desc: domain layer must not depend on GORM
+            - pkg: gorm.io/driver/postgres
+              desc: domain layer must not depend on the Postgres driver
+        application-clean-boundary:
+          files:
+            - internal/modules/*/application/*.go
+          deny:
+            - pkg: github.com/gin-gonic/gin
+              desc: application layer must not depend on the HTTP framework
+            - pkg: gorm.io/gorm
+              desc: application layer must not depend on GORM
+            - pkg: gorm.io/driver/postgres
+              desc: application layer must not depend on the Postgres driver
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
