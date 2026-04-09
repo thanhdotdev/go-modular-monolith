@@ -1,4 +1,4 @@
-# go-modular-monolith
+# go-modular-monolith.
 
 Starter template Go theo hướng `modular monolith + clean architecture + DDD-lite`.
 
