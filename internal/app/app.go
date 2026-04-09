@@ -29,40 +29,16 @@ type App struct {
 }
 
 func New(cfg config.Config, logger *zap.Logger) (*App, error) {
-	if cfg.GinMode != "" {
-		gin.SetMode(cfg.GinMode)
-	}
+	setGinMode(cfg.GinMode)
 
 	postgresDB, closePostgres, err := openPostgresDB(cfg, logger)
 	if err != nil {
 		return nil, err
 	}
 
-	router := gin.New()
-	router.Use(
-		middleware.RequestID(),
-		middleware.AccessLog(cfg.Logging),
-		gin.Recovery(),
-	)
-	router.GET("/healthz", func(c *gin.Context) {
-
-		httpx.JSON(c, http.StatusOK, gin.H{
-			"app":    cfg.AppName,
-			"status": "ok",
-		})
-	})
-
-	api := router.Group("/api/v1")
-
-	customerModule := customer.NewModule(customer.Dependencies{
-		Repository: customermemory.NewRepository(customermemory.SeedCustomers()),
-	})
-	customerModule.RegisterRoutes(api)
-
-	orderModule := order.NewModule(order.Dependencies{
-		Repository: newOrderRepository(postgresDB, logger),
-	})
-	orderModule.RegisterRoutes(api)
+	router := newRouter(cfg)
+	registerSharedRoutes(router, cfg)
+	registerModules(router.Group("/api/v1"), postgresDB, logger)
 
 	return &App{
 		logger:        logger,
@@ -98,6 +74,53 @@ func (a *App) Run(ctx context.Context) error {
 
 		return a.server.Shutdown(shutdownCtx)
 	}
+}
+
+func setGinMode(mode string) {
+	if mode == "" {
+		return
+	}
+
+	gin.SetMode(mode)
+}
+
+func newRouter(cfg config.Config) *gin.Engine {
+	router := gin.New()
+	router.Use(
+		middleware.RequestID(),
+		middleware.AccessLog(cfg.Logging),
+		gin.Recovery(),
+	)
+
+	return router
+}
+
+func registerSharedRoutes(router *gin.Engine, cfg config.Config) {
+	router.GET("/healthz", func(c *gin.Context) {
+		httpx.JSON(c, http.StatusOK, gin.H{
+			"app":    cfg.AppName,
+			"status": "ok",
+		})
+	})
+}
+
+func registerModules(api *gin.RouterGroup, postgresDB *gorm.DB, logger *zap.Logger) {
+	registerCustomerModule(api)
+	registerOrderModule(api, postgresDB, logger)
+}
+
+func registerCustomerModule(api *gin.RouterGroup) {
+	module := customer.NewModule(customer.Dependencies{
+		Repository: customermemory.NewRepository(customermemory.SeedCustomers()),
+	})
+	module.RegisterRoutes(api)
+}
+
+func registerOrderModule(api *gin.RouterGroup, postgresDB *gorm.DB, logger *zap.Logger) {
+	module := order.NewModule(order.Dependencies{
+		Repository: newOrderRepository(postgresDB, logger),
+	})
+	module.RegisterRoutes(api)
 }
 
 func openPostgresDB(cfg config.Config, logger *zap.Logger) (*gorm.DB, func() error, error) {
