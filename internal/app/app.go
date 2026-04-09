@@ -54,12 +54,14 @@ func New(cfg config.Config, logger *zap.Logger) (*App, error) {
 
 	api := router.Group("/api/v1")
 
-	customerRepository := customermemory.NewRepository(customermemory.SeedCustomers())
-	customerModule := customer.NewModule(customerRepository)
+	customerModule := customer.NewModule(customer.Dependencies{
+		Repository: customermemory.NewRepository(customermemory.SeedCustomers()),
+	})
 	customerModule.RegisterRoutes(api)
 
-	orderRepository := newOrderRepository(postgresDB, logger)
-	orderModule := order.NewModule(orderRepository)
+	orderModule := order.NewModule(order.Dependencies{
+		Repository: newOrderRepository(postgresDB, logger),
+	})
 	orderModule.RegisterRoutes(api)
 
 	return &App{

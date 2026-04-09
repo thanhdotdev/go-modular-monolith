@@ -45,8 +45,12 @@ type Module struct {
 	handler *${PACKAGE_PREFIX}http.Handler
 }
 
-func NewModule(repo ${PACKAGE_PREFIX}domain.Repository) *Module {
-	usecase := ${PACKAGE_PREFIX}application.NewService(repo)
+type Dependencies struct {
+	Repository ${PACKAGE_PREFIX}domain.Repository
+}
+
+func NewModule(deps Dependencies) *Module {
+	usecase := ${PACKAGE_PREFIX}application.NewService(deps.Repository)
 	handler := ${PACKAGE_PREFIX}http.NewHandler(usecase)
 
 	return &Module{handler: handler}
@@ -91,7 +95,7 @@ type ${TYPE_NAME}DTO struct {
 }
 EOF
 
-cat <<EOF > "$MODULE_DIR/application/port_in.go"
+cat <<EOF > "$MODULE_DIR/application/usecase.go"
 package ${PACKAGE_PREFIX}application
 
 import "context"

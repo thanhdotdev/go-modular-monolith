@@ -8,12 +8,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type Dependencies struct {
+	Repository customerdomain.Repository
+}
+
 type Module struct {
 	handler *customerhttp.Handler
 }
 
-func NewModule(repo customerdomain.Repository) *Module {
-	usecase := customerapplication.NewService(repo)
+func NewModule(deps Dependencies) *Module {
+	usecase := customerapplication.NewService(deps.Repository)
 	handler := customerhttp.NewHandler(usecase)
 
 	return &Module{handler: handler}

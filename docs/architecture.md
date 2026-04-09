@@ -190,14 +190,14 @@ Không chứa:
 Các file:
 - [service.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/service.go)
 - [dto.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/dto.go)
-- [port_in.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/port_in.go)
+- [usecase.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/usecase.go)
 
 Chứa:
 - use case
 - input validation ở mức use case
 - map domain entity sang DTO
 
-`port_in.go` ở đây là inbound port:
+`usecase.go` ở đây là inbound contract:
 - `delivery/http` gọi vào `application` qua contract này
 - implementation thật là `Service`
 
@@ -222,7 +222,8 @@ File [handler.go](/Users/vothanh/Documents/Playground/project-example/internal/m
 ### `module.go`
 
 File [module.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/module.go):
-- lắp `repo -> usecase -> handler`
+- nhận `Dependencies`
+- tự lắp `repo -> usecase -> handler`
 - expose `RegisterRoutes(...)`
 
 Điểm quan trọng:
@@ -266,7 +267,22 @@ Chi tiết:
 
 Nhờ vậy log trong `service` cũng tự có `request_id`.
 
-## 7. Logging Hiện Tại
+## 7. Nếu Sau Này Có Cross-Module Call
+
+Template hiện tại không cài sẵn ví dụ module A gọi module B trong runtime, vì với starter template như vậy thường hơi over-engineering.
+
+Cách khuyên dùng là:
+- bắt đầu đơn giản
+- wiring ở `internal/app`
+- chỉ thêm outbound contract khi thật sự có áp lực về coupling hoặc cần thu hẹp surface của module kia
+
+Rule thực dụng:
+- đừng gọi repo của module khác
+- đừng query thẳng bảng của module khác
+- nếu cần logic của module kia, đi qua `application` contract của nó
+- nếu flow bắt đầu lớn, lúc đó mới cân nhắc `application/dependencies.go`
+
+## 8. Logging Hiện Tại
 
 Repo hiện dùng `zap`.
 
@@ -295,7 +311,7 @@ Lưu ý:
 - nên chỉ bật khi debug hoặc môi trường kiểm soát tốt
 - không nên bật mặc định ở production nếu request có dữ liệu nhạy cảm
 
-## 8. Persistence Hiện Tại
+## 9. Persistence Hiện Tại
 
 `customer`:
 - đang dùng memory repository
@@ -314,7 +330,7 @@ Không dùng `AutoMigrate`.
 - schema có version rõ ràng
 - app boot không tự âm thầm sửa DB
 
-## 9. Vì sao repo có thêm vài helper generic nhỏ?
+## 10. Vì sao repo có thêm vài helper generic nhỏ?
 
 Repo hiện có một số helper generic nhỏ như:
 - `getEnv[T]`
@@ -328,7 +344,7 @@ Mục tiêu là:
 
 Nếu một helper làm code business khó hiểu hơn, thì không nên thêm.
 
-## 10. Những gì repo chưa cố làm
+## 11. Những gì repo chưa cố làm
 
 Repo này chưa cố thêm:
 - auth framework
@@ -340,7 +356,7 @@ Repo này chưa cố thêm:
 
 Lý do là để tránh over-engineering ở giai đoạn làm starter template.
 
-## 11. Khi nào dùng template này?
+## 12. Khi nào dùng template này?
 
 Template này hợp với:
 - dự án monolith sống lâu
