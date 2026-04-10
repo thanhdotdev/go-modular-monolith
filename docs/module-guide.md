@@ -39,7 +39,7 @@ make new-module name=invoice
 
 Script sẽ tạo skeleton tối thiểu, kèm test mẫu cho `application` và `delivery/http`.
 Sau đó bạn cần:
-1. Đăng ký module trong [app.go](/Users/vothanh/Documents/Playground/project-example/internal/app/app.go)
+1. Đăng ký module trong [app.go](../internal/app/app.go)
 2. Viết entity và use case thật
 3. Thay memory repository bằng persistence thật khi cần
 

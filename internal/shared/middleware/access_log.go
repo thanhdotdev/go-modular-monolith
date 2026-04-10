@@ -189,12 +189,12 @@ func captureRequestBody(request *http.Request, cfg config.LoggingConfig) (string
 		return "", false
 	}
 
-	bodyBytes, err := io.ReadAll(request.Body)
+	bodyBytes, err := io.ReadAll(io.LimitReader(request.Body, int64(cfg.BodyMaxBytes)+1))
 	if err != nil {
 		return "", false
 	}
 
-	request.Body = io.NopCloser(bytes.NewReader(bodyBytes))
+	request.Body = io.NopCloser(io.MultiReader(bytes.NewReader(bodyBytes), request.Body))
 	if len(bodyBytes) == 0 {
 		return "", false
 	}

@@ -44,7 +44,7 @@ Hướng phụ thuộc phải đi vào trong:
 
 ## 3. Composition Root
 
-File [app.go](/Users/vothanh/Documents/Playground/project-example/internal/app/app.go) là `composition root`.
+File [app.go](../internal/app/app.go) là `composition root`.
 
 Đây là nơi:
 - load shared resources
@@ -94,7 +94,7 @@ internal/modules/
 
 ### `cmd/server`
 
-File [main.go](/Users/vothanh/Documents/Playground/project-example/cmd/server/main.go):
+File [main.go](../cmd/server/main.go):
 - load config
 - bootstrap logger
 - tạo app
@@ -102,7 +102,7 @@ File [main.go](/Users/vothanh/Documents/Playground/project-example/cmd/server/ma
 
 ### `cmd/migrate`
 
-File [main.go](/Users/vothanh/Documents/Playground/project-example/cmd/migrate/main.go):
+File [main.go](../cmd/migrate/main.go):
 - load config
 - bootstrap logger
 - chạy `migrate up` hoặc `migrate down`
@@ -111,45 +111,45 @@ File [main.go](/Users/vothanh/Documents/Playground/project-example/cmd/migrate/m
 
 Phần hạ tầng dùng chung cho toàn app:
 
-- [config.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/config/config.go)
+- [config.go](../internal/platform/config/config.go)
   - load env config
   - có generic helper `getEnv[T]`
-- [postgres.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/database/postgres.go)
+- [postgres.go](../internal/platform/database/postgres.go)
   - mở kết nối Postgres
-- [migrate.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/database/migrate.go)
+- [migrate.go](../internal/platform/database/migrate.go)
   - chạy migration SQL versioned
-- [server.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/httpserver/server.go)
+- [server.go](../internal/platform/httpserver/server.go)
   - bọc `http.Server`
-- [logger.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/logger/logger.go)
+- [logger.go](../internal/platform/logger/logger.go)
   - bootstrap `zap`
   - hỗ trợ `stdout|file|both`
   - hỗ trợ `json|console`
   - hỗ trợ log rotation bằng `lumberjack`
-- [context.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/logger/context.go)
+- [context.go](../internal/platform/logger/context.go)
   - gắn request-scoped logger vào `context.Context`
-- [close.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/logger/close.go)
+- [close.go](../internal/platform/logger/close.go)
   - đóng logger output ở entrypoint
 
 ### `internal/shared`
 
 Phần dùng chung nhưng không thuộc business domain cụ thể:
 
-- [response.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/httpx/response.go)
+- [response.go](../internal/shared/httpx/response.go)
   - success response envelope
-- [errors.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/httpx/errors.go)
+- [errors.go](../internal/shared/httpx/errors.go)
   - error mapping cho HTTP
-- [request_id.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/httpx/request_id.go)
+- [request_id.go](../internal/shared/httpx/request_id.go)
   - request id cho `gin.Context`
-- [request_id.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/middleware/request_id.go)
+- [request_id.go](../internal/shared/middleware/request_id.go)
   - tạo hoặc lấy `X-Request-ID`
   - nhét request-scoped logger vào `context`
-- [access_log.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/middleware/access_log.go)
+- [access_log.go](../internal/shared/middleware/access_log.go)
   - ghi log `[REQUEST] ...`
   - ghi log `[RESPONSE] ...`
   - có thể log request/response payload nếu bật config
-- [index.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/collection/index.go)
+- [index.go](../internal/shared/collection/index.go)
   - helper generic `IndexBy`
-- [ptr.go](/Users/vothanh/Documents/Playground/project-example/internal/shared/ptr/ptr.go)
+- [ptr.go](../internal/shared/ptr/ptr.go)
   - helper generic `ptr.Of`
 
 ## 5. Cấu trúc một module
@@ -171,9 +171,9 @@ internal/modules/order/
 ### `domain`
 
 Các file:
-- [order.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/domain/order.go)
-- [repository.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/domain/repository.go)
-- [errors.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/domain/errors.go)
+- [order.go](../internal/modules/order/domain/order.go)
+- [repository.go](../internal/modules/order/domain/repository.go)
+- [errors.go](../internal/modules/order/domain/errors.go)
 
 Chứa:
 - entity
@@ -189,9 +189,9 @@ Không chứa:
 ### `application`
 
 Các file:
-- [service.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/service.go)
-- [dto.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/dto.go)
-- [usecase.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/application/usecase.go)
+- [service.go](../internal/modules/order/application/service.go)
+- [dto.go](../internal/modules/order/application/dto.go)
+- [usecase.go](../internal/modules/order/application/usecase.go)
 
 Chứa:
 - use case
@@ -215,7 +215,7 @@ Ví dụ hiện có trong repo:
 
 ### `delivery/http`
 
-File [handler.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/delivery/http/handler.go):
+File [handler.go](../internal/modules/order/delivery/http/handler.go):
 - nhận request từ Gin
 - gọi use case
 - map lỗi sang HTTP response
@@ -225,15 +225,15 @@ File [handler.go](/Users/vothanh/Documents/Playground/project-example/internal/m
 
 `order` hiện có 2 implementation:
 
-- [repository.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/infrastructure/memory/repository.go)
+- [repository.go](../internal/modules/order/infrastructure/memory/repository.go)
   - dùng để app chạy ngay khi chưa có DB
-- [repository.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/infrastructure/postgres/repository.go)
+- [repository.go](../internal/modules/order/infrastructure/postgres/repository.go)
   - dùng Postgres thật
   - model và mapper tách riêng
 
 ### `module.go`
 
-File [module.go](/Users/vothanh/Documents/Playground/project-example/internal/modules/order/module.go):
+File [module.go](../internal/modules/order/module.go):
 - nhận `Dependencies`
 - tự lắp `repo -> usecase -> handler`
 - expose `RegisterRoutes(...)`
@@ -305,7 +305,7 @@ Các đặc điểm:
 - có thể rotate file
 - có request-scoped logger
 
-Các config hiện có trong [config.go](/Users/vothanh/Documents/Playground/project-example/internal/platform/config/config.go):
+Các config hiện có trong [config.go](../internal/platform/config/config.go):
 - `LOG_OUTPUT`
 - `LOG_FILE_PATH`
 - `LOG_LEVEL`
@@ -333,8 +333,8 @@ Lưu ý:
 - dùng Postgres repository nếu có `DATABASE_DSN`
 
 Schema của Postgres được quản lý bằng migration SQL versioned:
-- [000001_create_orders_table.up.sql](/Users/vothanh/Documents/Playground/project-example/migrations/000001_create_orders_table.up.sql)
-- [000001_create_orders_table.down.sql](/Users/vothanh/Documents/Playground/project-example/migrations/000001_create_orders_table.down.sql)
+- [000001_create_orders_table.up.sql](../migrations/000001_create_orders_table.up.sql)
+- [000001_create_orders_table.down.sql](../migrations/000001_create_orders_table.down.sql)
 
 Không dùng `AutoMigrate`.
 

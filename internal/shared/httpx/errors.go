@@ -31,5 +31,6 @@ func WriteError(c *gin.Context, err error, mappings ...ErrorMapping) {
 		}
 	}
 
+	_ = c.Error(err)
 	Error(c, http.StatusInternalServerError, "internal_error", "internal server error")
 }
